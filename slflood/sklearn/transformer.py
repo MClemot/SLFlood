@@ -1,0 +1,94 @@
+import slflood
+
+from joblib import Parallel, delayed
+from multipers.filtrations.density import KDE, DTM
+import numpy as np
+from sklearn.base import BaseEstimator, TransformerMixin
+import torch
+
+class SublevelFloodBifiltration(BaseEstimator, TransformerMixin):
+    """
+    Scikit-learn transformer computing the sublevel Flood bifiltration of point clouds.
+    For each input point cloud, a co-density function is estimated via kernel density distance-to-measure.
+
+    Parameters
+    ----------
+    n_lms : int
+        Number of landmarks to sample (via farthest point sampling).
+
+    kde_bandwidth : float, optional
+        Bandwidth of the Gaussian kernel used to compute the density functions.
+        Mutually exclusive with ``dtm_mass``.
+
+    dtm_mass : float, optional
+        Mass parameter in (0, 1] used to compute the Distance-To-Measure (DTM) functions.
+        Mutually  exclusive with ``kde_bandwidth``.
+
+    log_density : bool, default=False
+        If True and ``kde_bandwidth`` is set, uses the log-density instead of the density.
+
+    normalize : bool, default=True
+        Whether to normalize the density functions.
+
+    points_per_edges : int, default=20
+        Resolution of the sampling grid used on each simplex.
+
+    exact : bool, default=False
+        Whether to compute the exact (unmasked) or approximate (masked, faster) sublevel Flood bifiltration.
+
+    device : {'auto', 'cpu', 'cuda'}, default='auto'
+        Device used for computation. When 'auto', detects whether CUDA in available.
+
+    use_triton : bool, default=True
+        Whether to use Triton kernels when available.
+
+    n_jobs : int, default=-1
+        Currently unused.
+    """
+
+    def __init__(self, n_lms, kde_bandwidth=None, dtm_mass=None, log_density=False, normalize=True, points_per_edges=20, exact=False, device='auto', use_triton=True, n_jobs=-1):
+        self.n_lms = n_lms
+        self.bandwidth = kde_bandwidth
+        self.mass = dtm_mass
+        self.log_density = log_density
+        self.normalize = normalize
+        self.points_per_edges = points_per_edges
+        self.exact = exact
+        self.device = device
+        self.use_triton = use_triton
+        self.n_jobs = n_jobs
+
+        assert (self.bandwidth is None or self.mass is None)
+        assert (self.device in ['cpu', 'cuda', 'auto'])
+
+    def fit(self, X, y=None):
+        if not torch.cuda.is_available():
+            self.device = 'cpu'
+        elif self.device == 'auto':
+            self.device = 'cuda'
+        return self
+
+    def __density(self, X):
+        functions = []
+        for pts in X:
+            if self.bandwidth is not None:
+                function = -KDE(bandwidth=self.bandwidth, kernel="gaussian", return_log=self.log_density).fit(pts).score_samples(pts)
+            else:
+                function = DTM(masses=[self.mass]).fit(pts).score_samples(pts)[0]
+            if self.normalize:
+                function -= function.min()
+                function /= function.max()
+            functions.append(function)
+        return torch.tensor(np.array(functions))
+
+    def __transform(self, x, f):
+        x, f = x.to(self.device), f.to(self.device)
+        return slflood.slflood_bifiltration(x, self.n_lms, f,
+                                            points_per_edge=self.points_per_edges,
+                                            exact=self.exact,
+                                            use_triton=self.use_triton)
+
+    def transform(self, X):
+        F = self.__density(X)
+
+        return [self.__transform(x, f) for (x,f) in zip(X, F)]

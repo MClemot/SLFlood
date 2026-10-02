@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "slflood"
+version = "0.0"
+description = "A package that computes the sublevel Flood bifiltration, a scalable approximation for using 2-parameter persistent homology with large-scale, low-dimensional point sets."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fpsample",
+    "gudhi",
+    "multipers >= 2.6.0",
+    "numpy",
+    "torch",
+    "triton",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["slflood"]
