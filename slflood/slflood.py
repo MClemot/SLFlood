@@ -60,6 +60,7 @@ def slflood_bifiltration(
     use_triton: bool = False,
     fps_h: Union[None, int] = None,
     start_idx: Union[int, None] = 0,
+    verbose = False,
 ):
     """
     Constructs the sublevel Flood bifiltration from a set of points with scalar values and a set of landmarks.
@@ -123,7 +124,8 @@ def slflood_bifiltration(
     if not torch.is_floating_point(landmarks):
         landmarks = points[ranks[landmarks]]
 
-    elapsed("SORT")
+    if verbose:
+        elapsed("SORT")
 
     stree = gudhi.delaunay_complex.DelaunayComplex(landmarks.cpu()).create_simplex_tree(filtration=None)
     cells_list = []
@@ -147,7 +149,8 @@ def slflood_bifiltration(
     cells = torch.tensor(cells_list, device=device)
     simplices_by_dim = [torch.tensor(l, device=device) for l in simplices_list]
 
-    elapsed("DELAUNAY")
+    if verbose:
+        elapsed("DELAUNAY")
 
     # precompute simplex centers
     simplex_vertices = landmarks[cells]
@@ -156,21 +159,23 @@ def slflood_bifiltration(
     simplex_radii = near_radius * torch.tensor(Lr, device=device, dtype=dtype)
     simplex_centers = torch.tensor(Lc, device=device, dtype=dtype)
 
-    elapsed("BALLS")
+    if verbose:
+        elapsed("BALLS")
 
     mask = near_validity(points, simplex_centers, simplex_radii)
-    # print(f"Mask sparsity: {mask.sum()} / {mask.numel()} ({mask.sum() / mask.numel() * 100:.2f}%)")
     scc0, mask = vertex_bigrades(points, landmarks, function, cells, mask)
     if exact:
         mask = torch.ones_like(mask)
-    # print(f"Mask sparsity: {mask.sum()} / {mask.numel()} ({mask.sum() / mask.numel() * 100:.2f}%)")
-    elapsed("MASK")
+    if verbose:
+        elapsed("MASK")
 
     ret_stree.insert_batch(np.arange(len(scc0))[None,:], pad_bigrades(scc0))
-    elapsed("ASSIGN_0")
+    if verbose:
+        elapsed("ASSIGN_0")
 
     submasks = [mask_from_adjacency(cocells, mask) for cocells in simplices_cocells]
-    elapsed("SUBMASKS")
+    if verbose:
+        elapsed("SUBMASKS")
 
     simplices_by_dim.append(cells)
     submasks.append(mask)
@@ -236,6 +241,7 @@ def slflood_bifiltration(
 
         ret_stree.insert_batch(simplices.cpu().numpy().T, pad_bigrades(bigrades))
 
-    elapsed("LOOP")
+    if verbose:
+        elapsed("LOOP")
 
     return ret_stree
