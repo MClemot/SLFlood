@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "slflood"
 version = "0.1"
-description = "A package that computes the sublevel Flood bifiltration, a scalable approximation for using 2-parameter persistent homology with large-scale, low-dimensional point sets."
+description = "A package that computes the sublevel Flood bifiltration, a scalable approach for using 2-parameter persistent homology with large-scale, low-dimensional point sets."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -13,8 +13,8 @@ dependencies = [
     "gudhi",
     "multipers >= 2.6.0",
     "numpy",
-    "torch",
-    "triton",
+    "scikit-learn",
+    "torch"
 ]
 
 [project.urls]

@@ -77,17 +77,16 @@ def pad_bigrades(bigrades_list):
     return padded
 
 
-from colorama import Fore
 import time
 
 t = time.time()
 
-def elapsed(str=None):
+def elapsed(s=None):
     global t
-    if str is not None:
-        print(Fore.MAGENTA + "[timing]" + Fore.RESET, str, int(1000*(time.time() - t)))
+    if s is not None:
+        print("[timing]", s, int(1000*(time.time() - t)))
     else:
-        print(Fore.MAGENTA + "[timing]" + Fore.RESET, int(1000*(time.time() - t)))
+        print("[timing]", int(1000*(time.time() - t)))
     t = time.time()
 
 def reset():

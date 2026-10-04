@@ -7,18 +7,16 @@ device = 'cpu'
 def generate_ambient_noise(n_pts, dim, radius=1., seed=None):
     if seed is not None:
         torch.manual_seed(seed)
-    res = torch.rand((n_pts*2, dim), device=device) * 2 - 1
-    keep = torch.linalg.norm(res, dim=-1) <= 1.
-    res = res[keep][:n_pts]
-    if res.shape[0] == n_pts:
-        return res * radius
-    return generate_ambient_noise(n_pts, dim, radius=radius)
+    directions = torch.normal(0, 1, size=(n_pts, dim), device=device)
+    directions /= torch.linalg.norm(directions, dim=-1, keepdim=True)
+    radii = torch.rand((n_pts, 1), device=device) ** (1. / dim)
+    return directions * radii * radius
 
 def generate_sphere(n, dim, device, seed=None):
     if seed is not None:
         torch.manual_seed(seed)
     X = torch.normal(0, 1, size=(n,dim), device=device)
-    X = X / torch.norm(X, dim=1)[:,None]
+    X = X / torch.norm(X, dim=-1, keepdim=True)
     X += torch.normal(0, 0.01, size=(n,dim), device=device)
     return X
 

@@ -2,7 +2,6 @@ import slflood
 import slflood.data
 
 import multipers as mp
-from multipers.filtrations.density import KDE
 import pytest
 import torch
 

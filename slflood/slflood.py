@@ -9,9 +9,14 @@ import torch
 
 from .landmarks import generate_landmarks_FPS
 from .meb import minimum_enclosing_balls
-from .triton_maxcummin import maxcummin
-from .triton_mask_topk import compact_mask_indices
 from .utils import generate_grid, mask_from_adjacency, pad_bigrades, reset, elapsed
+
+try:
+    from .triton_maxcummin import maxcummin
+    from .triton_mask_topk import compact_mask_indices
+    HAS_TRITON = True
+except ImportError:
+    HAS_TRITON = False
 
 @torch.no_grad()
 def near_validity(points: torch.Tensor,
@@ -69,8 +74,7 @@ def slflood_bifiltration(
         points (torch.Tensor):
             A (N, d) tensor containing the input point set.
         landmarks (Union[int, torch.Tensor]):
-            Either an integer indicating the number of landmarks to randomly sample from `points`,
-            or a tensor of shape (N_l, d) specifying an explicit set of landmarks.
+            Either an integer indicating the number of landmarks to randomly sample from `points` using FPS, or a tensor of shape (N_l, d) specifying an explicit set of landmarks.
         function (torch.Tensor):
             A (N) tensor containing the scalar values on the points.
         max_dimension (int, optional):
@@ -113,7 +117,7 @@ def slflood_bifiltration(
 
     device = points.device
     dtype = points.dtype
-    use_triton = use_triton and device.type == 'cuda'
+    use_triton = use_triton and HAS_TRITON and device.type == 'cuda'
 
     arg = torch.argsort(function)
     ranks = torch.empty_like(arg)

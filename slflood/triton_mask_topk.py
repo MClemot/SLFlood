@@ -3,7 +3,7 @@ Triton replacement for:
 
     b_mask_indices = torch.argsort(b_mask, dim=1, descending=True, stable=True)[:, :K]
     or
-    b_mask_indices = torch.topk(b_mask, k=b_mask, dim=1, sorted=False)[1]
+    b_mask_indices = torch.topk(b_mask, k=K, dim=1, sorted=False)[1]
 
 Algorithm: classic prefix-sum-based stream compaction, done as a single
 sequential pass per row over blocks of the N dimension, carrying a running
