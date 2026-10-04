@@ -6,7 +6,7 @@ try:
     from sklearn.base import BaseEstimator, TransformerMixin
 except ImportError as e:
     raise ImportError(
-        "slflood.sklearn requires scikit-learn, which can be installed with `pip install slflood[sklearn]`"
+        "slflood.sklearn requires scikit-learn, which can be installed with `pip install sublevel-flood[sklearn]`"
     ) from e
 import torch
 

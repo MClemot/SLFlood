@@ -1,6 +1,6 @@
 # The sublevel Flood bifiltration: towards scalable 2-parameter persistent homology
 
-[![PyPI - Version](https://img.shields.io/pypi/v/slflood?logo=python)](https://pypi.org/project/slflood/)
+[![PyPI - Version](https://img.shields.io/pypi/v/sublevel-flood?logo=python)](https://pypi.org/project/sublevel-flood/)
 
 This repository contains the code for the manuscript *Sublevel Flood bifiltration: scalable 2-parameter persistent homology*.
 The aim is to provide a way to compute 2-parameter persistent homology of large scale point clouds (up to $10^6$).
@@ -9,9 +9,9 @@ To do so, it extends the [*Flood filtration*](https://proceedings.neurips.cc/pap
 The Python package constructs a ```SimplexTreeMulti``` from the [```multipers```](https://github.com/DavidLapous/multipers) library.
 
 ## Installation
-`slflood` can be installed via PyPI.
+`sublevel-flood` can be installed via PyPI.
 
-```pip install slflood```
+```pip install sublevel-flood```
 
 ## Usage
 

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "slflood"
+name = "sublevel-flood"
 version = "0.1"
 description = "A package that computes the sublevel Flood bifiltration, a scalable approach for using 2-parameter persistent homology with large-scale, low-dimensional point sets."
 readme = "README.md"
