@@ -1,4 +1,4 @@
-# Sublevel Flood bifiltration: scalable 2-parameter persistent homology
+# The sublevel Flood bifiltration: towards scalable 2-parameter persistent homology
 
 [![PyPI - Version](https://img.shields.io/pypi/v/slflood?logo=python)](https://pypi.org/project/slflood/)
 
@@ -15,7 +15,7 @@ The Python package constructs a ```SimplexTreeMulti``` from the [```multipers```
 
 ## Usage
 
-The following example computes the sublevel Flood bifiltration of a random point set in $\mathbb{R}^3$ with random values and 100 landmarks, using CUDA if available, then computes and plots its multiparameter module approximation with `multipers`. 
+The following example computes the sublevel Flood bifiltration (with 100 landmarks) of a point set in $\mathbb{R}^3$ distributed as a sphere with ambient noise, using CUDA. Then, it computes and plots its multiparameter module approximation with `multipers`.
 
 ```python
 import slflood
@@ -28,8 +28,8 @@ n_pts = 10000
 n_lms = 100
 dim = 3
 
-pts, lms_idx, fun = slflood.data.noisy_sphere_data(n_pts, n_lms, dim,
-                                                   bandwidth=0.2)
+pts, lms_idx, fun = noisy_sphere_data(n_pts, n_lms, dim,
+                                      bandwidth=0.2)
 
 slf = slflood.slflood_bifiltration(pts.cuda(), lms_idx.cuda(), fun.cuda())
 mma = multipers.module_approximation(slf)
@@ -37,7 +37,7 @@ mma.plot(box=[[0, 0], [1, 1]])
 plt.show()
 ```
 
-![](images/noisy_sphere_mma.png)
+![](https://raw.githubusercontent.com/MClemot/SLFlood/main/images/noisy_sphere_mma.png)
 
 ## Citation
 ```bibtex

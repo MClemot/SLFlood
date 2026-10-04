@@ -2,7 +2,12 @@ import slflood
 
 from multipers.filtrations.density import KDE, DTM
 import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin
+try:
+    from sklearn.base import BaseEstimator, TransformerMixin
+except ImportError as e:
+    raise ImportError(
+        "slflood.sklearn requires scikit-learn, which can be installed with `pip install slflood[sklearn]`"
+    ) from e
 import torch
 
 class SublevelFloodBifiltration(BaseEstimator, TransformerMixin):
@@ -57,9 +62,6 @@ class SublevelFloodBifiltration(BaseEstimator, TransformerMixin):
         self.use_triton = use_triton
         self.n_jobs = n_jobs
 
-        assert (self.kde_bandwidth is None or self.dtm_mass is None)
-        assert (self.kde_bandwidth is not None or self.dtm_mass is not None)
-
     def __get_device(self):
         if self.device not in ['cpu', 'cuda', 'auto']:
             raise ValueError(f"device must be 'cpu', 'cuda' or 'auto', got {self.device!r}")
@@ -77,8 +79,10 @@ class SublevelFloodBifiltration(BaseEstimator, TransformerMixin):
         for pts in X:
             if self.kde_bandwidth is not None:
                 function = -KDE(bandwidth=self.kde_bandwidth, kernel="gaussian", return_log=self.log_density).fit(pts).score_samples(pts)
-            else:
+            elif self.dtm_mass is not None:
                 function = DTM(masses=[self.dtm_mass]).fit(pts).score_samples(pts)[0]
+            else:
+                raise ValueError("exactly one parameter among kde_bandwidth and dtm_mass must be given")
             if self.normalize:
                 function -= function.min()
                 function /= function.max()

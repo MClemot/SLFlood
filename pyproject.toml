@@ -13,15 +13,15 @@ dependencies = [
     "gudhi",
     "multipers >= 2.6.0",
     "numpy",
-    "scikit-learn",
-    "torch"
+    "torch",
 ]
 
 [project.urls]
 Homepage = "https://github.com/MClemot/SLFlood"
 
 [project.optional-dependencies]
-test = ["pytest"]
+sklearn = ["scikit-learn"]
+test = ["pytest", "scikit-learn"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["slflood"]

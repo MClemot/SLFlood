@@ -4,6 +4,7 @@ from typing import Union
 
 import gudhi
 import multipers as mp
+import numbers
 import numpy as np
 import torch
 
@@ -74,7 +75,9 @@ def slflood_bifiltration(
         points (torch.Tensor):
             A (N, d) tensor containing the input point set.
         landmarks (Union[int, torch.Tensor]):
-            Either an integer indicating the number of landmarks to randomly sample from `points` using FPS, or a tensor of shape (N_l, d) specifying an explicit set of landmarks.
+            Either an integer indicating the number of landmarks to randomly sample from `points` using FPS,
+            or a tensor of integers of shape (N_l) giving the indices of the entries of `points` to take as landmarks,
+            or a tensor of floats of shape (N_l, d) specifying an explicit set of landmarks.
         function (torch.Tensor):
             A (N) tensor containing the scalar values on the points.
         max_dimension (int, optional):
@@ -87,7 +90,7 @@ def slflood_bifiltration(
         exact (bool, optional):
             Whether to compute the exact (unmasked) or approximate (masked) sublevel Flood bifiltration.
         batch_size (int, optional):
-            Size of simplex batches. Default to 32.
+            Size of simplex batches. Defaults to 32.
         use_triton (bool, optional):
             Whether to use Triton kernels if available.
         fps_h (Union[None, int], optional):
@@ -107,7 +110,8 @@ def slflood_bifiltration(
 
     if max_dimension == -1:
         max_dimension = points.shape[1]
-    if isinstance(landmarks, int):
+    
+    if isinstance(landmarks, numbers.Integral):
         if landmarks >= points.shape[0]:
             landmarks = points
         else:
@@ -116,8 +120,12 @@ def slflood_bifiltration(
         raise RuntimeError(f"landmarks.device ({landmarks.device}) != points.device ({points.device})")
 
     device = points.device
-    dtype = points.dtype
     use_triton = use_triton and HAS_TRITON and device.type == 'cuda'
+    if use_triton:
+        points = points.float()
+        if torch.is_floating_point(landmarks):
+            landmarks = landmarks.float()
+    dtype = points.dtype
 
     arg = torch.argsort(function)
     ranks = torch.empty_like(arg)
@@ -156,7 +164,6 @@ def slflood_bifiltration(
     if verbose:
         elapsed("DELAUNAY")
 
-    # precompute simplex centers
     simplex_vertices = landmarks[cells]
     simplex_vertices_cpu = simplex_vertices.cpu().numpy().astype(np.float64, copy=False)
     Lc, Lr = minimum_enclosing_balls(simplex_vertices_cpu)

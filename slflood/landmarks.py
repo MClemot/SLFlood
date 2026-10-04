@@ -37,9 +37,8 @@ def generate_landmarks_FPS(
 
     Returns:
         torch.Tensor:
-            A (n_l, d) tensor containing a subset of the input `points`, representing the
-            sampled landmarks. Returned tensor is on the same device and has the same dtype
-            as the input.
+            A (n_l, d) tensor containing a subset of the input `points`, representing the sampled landmarks,
+            or a (n_l) tensor of integers containing the indices of the sampled landmarks.
     """
     if n_lms <= 0:
         raise RuntimeError(

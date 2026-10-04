@@ -1,3 +1,6 @@
+import pytest
+pytest.importorskip("sklearn")
+
 from slflood.sklearn import SublevelFloodBifiltration
 
 from multipers.ml.mma import FilteredComplex2MMA

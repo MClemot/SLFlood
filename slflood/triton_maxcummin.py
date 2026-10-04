@@ -12,9 +12,7 @@ online softmax):
   distance as witness points are added in order (m = 0, 1, 2, ...).
   After adding point m, the "covering radius" at that prefix length is
   max_g(running_min[g]). Only that (B, M) result is ever needed downstream
-  (the "critical" step in functionFlood.py operates on max_diameters, never
-  on the raw cummin tensor) - so the (B, M, G) intermediate never needs to
-  exist in memory.
+  so the (B, M, G) intermediate never needs to exist in memory.
 
   Grid points are split into blocks of BLOCK_G for parallelism (so a run
   isn't limited to B independent programs, which would badly underuse a
@@ -141,27 +139,3 @@ def maxcummin(b_mask_points: torch.Tensor, b_sample: torch.Tensor) -> torch.Tens
     )
 
     return partial.amax(dim=2)
-
-
-def warmup(device, D: int, G_values, dtype=torch.float32):
-    """
-    Pre-trigger compilation + the one-time autotune search for each
-    distinct G you expect to see, BEFORE the real batch loop starts.
-
-    Call this once per `function_flood_complex` call (or once per process,
-    if G values are stable across calls) with the G values for every
-    simplex dimension you're about to process - e.g.
-    `warmup(device, D, [weights.shape[0] for weights in all_grids])`.
-
-    Without this, the first batch at each new G still pays the autotune
-    search cost inline (once per G now, not once per batch - fine either
-    way after the key fix above - but pulling it out here keeps that cost
-    off your timed/profiled path entirely, which matters if you're
-    comparing against the PyTorch baseline with torch.profiler again).
-    """
-    for G in set(G_values):
-        dummy_points = torch.zeros(1, 2, D, device=device, dtype=dtype)
-        dummy_sample = torch.zeros(1, G, D, device=device, dtype=dtype)
-        maxcummin(dummy_points, dummy_sample)
-    if device.type == "cuda":
-        torch.cuda.synchronize()
