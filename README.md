@@ -2,7 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/sublevel-flood?logo=python)](https://pypi.org/project/sublevel-flood/)
 
-This repository contains the code for the manuscript *Sublevel Flood bifiltration: scalable 2-parameter persistent homology*.
+This repository contains the code for the manuscript [*Sublevel Flood bifiltration: scalable 2-parameter persistent homology*](https://arxiv.org/abs/2610.05441).
 The aim is to provide a way to compute 2-parameter persistent homology of large scale point clouds (up to $10^6$).
 To do so, it extends the [*Flood filtration*](https://proceedings.neurips.cc/paper_files/paper/2025/hash/aba03e6f25decb32bda9c5bf81c58305-Abstract-Conference.html) to the 2-parameter context.
 
