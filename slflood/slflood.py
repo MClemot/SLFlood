@@ -2,15 +2,15 @@
 
 from typing import Union
 
-import gudhi
 import multipers as mp
 import numbers
 import numpy as np
 import torch
 
 from .landmarks import generate_landmarks_FPS
-from .meb import minimum_enclosing_balls
 from .utils import generate_grid, mask_from_adjacency, pad_bigrades, reset, elapsed
+
+from .slflood_impl import delaunay_cells
 
 try:
     from .triton_maxcummin import maxcummin
@@ -108,7 +108,7 @@ def slflood_bifiltration(
 
     reset()
 
-    if max_dimension == -1:
+    if max_dimension < 0:
         max_dimension = points.shape[1]
     
     if isinstance(landmarks, numbers.Integral):
@@ -139,39 +139,19 @@ def slflood_bifiltration(
     if verbose:
         elapsed("SORT")
 
-    stree = gudhi.delaunay_complex.DelaunayComplex(landmarks.cpu()).create_simplex_tree(filtration=None)
-    cells_list = []
-    cells_idx  = dict()
-    simplices_list = [[] for _ in range(max_dimension-1)]
-    simplices_cocells = [[] for _ in range(max_dimension-1)]
-    for simplex, _ in stree.get_simplices():
-        dim = len(simplex)-1
-        if dim == max_dimension:
-            cells_idx[tuple(simplex)] = len(cells_list)
-            cells_list.append(simplex)
-        elif 0 < dim < max_dimension:
-            simplices_list[dim-1].append(simplex)
-            cocells = []
-            for cell,_ in stree.get_cofaces(simplex, max_dimension - dim):
-                cocells.append(cells_idx[tuple(cell)])
-            simplices_cocells[dim-1].append(cocells)
-
     ret_stree = mp.SimplexTreeMulti(num_parameters=2, kcritical=True)
 
-    cells = torch.tensor(cells_list, device=device)
-    simplices_by_dim = [torch.tensor(l, device=device) for l in simplices_list]
-
+    landmarks_np = np.ascontiguousarray(landmarks.detach().cpu().numpy(), dtype=np.float64)
+    cells_np, Lr, Lc, faces_np, simplices_cocells = delaunay_cells(landmarks_np)
+    cells = torch.as_tensor(cells_np, dtype=torch.long, device=device)
+    faces_np = faces_np[:max_dimension]
+    simplices_cocells = simplices_cocells[:max_dimension]
+    simplices_by_dim = [torch.as_tensor(f, dtype=torch.long, device=device) for f in faces_np]
     if verbose:
-        elapsed("DELAUNAY")
+        elapsed("DELAUNAY+BALLS")
 
-    simplex_vertices = landmarks[cells]
-    simplex_vertices_cpu = simplex_vertices.cpu().numpy().astype(np.float64, copy=False)
-    Lc, Lr = minimum_enclosing_balls(simplex_vertices_cpu)
-    simplex_radii = near_radius * torch.tensor(Lr, device=device, dtype=dtype)
-    simplex_centers = torch.tensor(Lc, device=device, dtype=dtype)
-
-    if verbose:
-        elapsed("BALLS")
+    simplex_radii = near_radius * torch.as_tensor(Lr, device=device, dtype=dtype)
+    simplex_centers = torch.as_tensor(Lc, device=device, dtype=dtype)
 
     mask = near_validity(points, simplex_centers, simplex_radii)
     scc0, mask = vertex_bigrades(points, landmarks, function, cells, mask)
@@ -188,8 +168,9 @@ def slflood_bifiltration(
     if verbose:
         elapsed("SUBMASKS")
 
-    simplices_by_dim.append(cells)
-    submasks.append(mask)
+    if max_dimension >= points.shape[1]:
+        simplices_by_dim.append(cells)
+        submasks.append(mask)
 
     for simplices, mask in zip(simplices_by_dim, submasks):
         num_simplices, dim = simplices.shape
