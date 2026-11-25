@@ -1,5 +1,6 @@
 """Implementation of sublevel flood bifiltration."""
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Union
 
 import multipers as mp
@@ -32,7 +33,8 @@ def vertex_bigrades(points: torch.Tensor,
                     landmarks: torch.Tensor,
                     function: torch.Tensor,
                     cells: torch.Tensor,
-                    mask: torch.Tensor):
+                    mask: torch.Tensor,
+                    use_triton: bool):
     landmarks_to_points = torch.cdist(landmarks, points)
     cummin = torch.cummin(landmarks_to_points, dim=1)[0]
     critical = torch.ones_like(cummin, dtype=torch.int8)
@@ -40,7 +42,10 @@ def vertex_bigrades(points: torch.Tensor,
 
     critical_count = critical.sum(1)
     critical_count_max = critical_count.max().item()
-    critical_indices = torch.argsort(critical, dim=1, descending=True, stable=True)[:,:critical_count_max]
+    if use_triton:
+        critical_indices = compact_mask_indices(critical, critical_count, critical_count_max)
+    else:
+        critical_indices = torch.argsort(critical, dim=1, descending=True, stable=True)[:,:critical_count_max]
     bigrades_diameters = torch.gather(cummin, dim=1, index=critical_indices)
     bigrades_functions = function[critical_indices]
     bigrades = torch.stack((bigrades_diameters, bigrades_functions), dim=-1).cpu().to(torch.float32)
@@ -63,7 +68,7 @@ def slflood_bifiltration(
     near_radius: float = np.sqrt(2),
     exact: bool = False,
     batch_size: int = 32,
-    use_triton: bool = False,
+    use_triton: bool = True,
     fps_h: Union[None, int] = None,
     start_idx: Union[int, None] = 0,
     verbose = False,
@@ -100,6 +105,8 @@ def slflood_bifiltration(
         start_idx (int | None, optional):
             If provided, FPS starts from this index in the point cloud. If not,
             the start index will be randomly picked from the point cloud. Defaults to 0.
+        verbose (bool, optional):
+            Whether to print timings of the different steps. Defaults to False.
 
     Returns:
         mp.SimplexTreeMulti
@@ -154,13 +161,14 @@ def slflood_bifiltration(
     simplex_centers = torch.as_tensor(Lc, device=device, dtype=dtype)
 
     mask = near_validity(points, simplex_centers, simplex_radii)
-    scc0, mask = vertex_bigrades(points, landmarks, function, cells, mask)
+    scc0, mask = vertex_bigrades(points, landmarks, function, cells, mask, use_triton)
     if exact:
         mask = torch.ones_like(mask)
     if verbose:
         elapsed("MASK")
 
-    ret_stree.insert_batch(np.arange(len(scc0))[None,:], pad_bigrades(scc0))
+    inserter = ThreadPoolExecutor(max_workers=1)
+    insertions = [inserter.submit(ret_stree.insert_batch, np.arange(len(scc0))[None,:], pad_bigrades(scc0))]
     if verbose:
         elapsed("ASSIGN_0")
 
@@ -182,7 +190,6 @@ def slflood_bifiltration(
         if not exact:
             mask_counts = mask.sum(1, keepdim=False, dtype=torch.int32)
             indices = torch.sort(mask_counts)[1]
-            mask = mask[indices].contiguous()
             simplices = simplices[indices].contiguous()
             points_on_simplex = points_on_simplex[indices].contiguous()
 
@@ -193,13 +200,10 @@ def slflood_bifiltration(
         for k in range(-(-num_simplices // batch_size)):
             s1, s2 = k*batch_size, min((k+1)*batch_size, num_simplices)
 
-            # b_simplices = simplices[s1:s2]
-            # b_simplices_vertices = landmarks[b_simplices]
-            # b_sample = weights.unsqueeze(0) @ b_simplices_vertices
             b_sample = points_on_simplex[s1:s2]
 
             if not exact:
-                b_mask = mask[s1:s2]
+                b_mask = mask[indices[s1:s2]]
                 b_mask_count_max = int(mask_counts[s2 - 1])
                 if use_triton:
                     b_mask_indices = compact_mask_indices(b_mask, mask_counts_t[s1:s2], b_mask_count_max)
@@ -231,7 +235,11 @@ def slflood_bifiltration(
             for i in range(len(b_bigrades)):
                 bigrades.append(b_bigrades[i, :critical_count[i]].numpy())
 
-        ret_stree.insert_batch(simplices.cpu().numpy().T, pad_bigrades(bigrades))
+        insertions.append(inserter.submit(ret_stree.insert_batch, simplices.cpu().numpy().T, pad_bigrades(bigrades)))
+
+    for insertion in insertions:
+        insertion.result()
+    inserter.shutdown()
 
     if verbose:
         elapsed("LOOP")
