@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15...3.27)
+cmake_minimum_required(VERSION 3.18...3.27)
 project(SLFlood LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -14,20 +14,11 @@ if (NOT SKBUILD)
     $ pip install .")
 endif()
 
-if (CMAKE_VERSION VERSION_LESS 3.18)
-    set(DEV_MODULE Development)
-else()
-    set(DEV_MODULE Development.Module)
-endif()
+set(DEV_MODULE Development.Module)
 
 find_package(Python 3.10
     REQUIRED COMPONENTS Interpreter ${DEV_MODULE}
     OPTIONAL_COMPONENTS Development.SABIModule)
-
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
 
 execute_process(
     COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
@@ -43,6 +34,9 @@ nanobind_add_module(
     # does nothing on older Python versions
     STABLE_ABI
 
+    # Optimize for speed instead of size
+    NOMINSIZE
+
     # Source code goes here
     slflood/src/delaunay.cpp
     slflood/src/delaunay_interface.cpp
@@ -51,11 +45,8 @@ nanobind_add_module(
 find_package(Eigen3 REQUIRED)
 find_package(CGAL REQUIRED)
 
-target_include_directories(slflood_impl PUBLIC ${EIGEN3_INCLUDE_DIR})
-target_link_libraries (slflood_impl PUBLIC Eigen3::Eigen)
-
-target_include_directories (slflood_impl PUBLIC ${CGAL_INCLUDE_DIR})
-target_link_libraries (slflood_impl PUBLIC ${CGAL_LIBRARIES})
+include(CGAL_Eigen3_support)
+target_link_libraries (slflood_impl PRIVATE CGAL::CGAL CGAL::Eigen3_support)
 
 if (SKBUILD)
     install(TARGETS slflood_impl LIBRARY DESTINATION slflood)
