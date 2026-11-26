@@ -48,3 +48,9 @@ plt.show()
       booktitle={NeurIPS},
 }
 ```
+
+## License
+
+The source code of this package is released under the [MIT License](LICENSE).
+
+The compiled extension module shipped in binary wheels links against [CGAL](https://www.cgal.org/), whose triangulation and bounding-volume packages are licensed under the GPL-3.0-or-later. As a result, the binary wheels as a whole are distributed under the terms of the [GNU General Public License v3.0 or later](LICENSES/GPL-3.0-or-later.txt).

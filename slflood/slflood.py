@@ -97,7 +97,7 @@ def slflood_bifiltration(
         batch_size (int, optional):
             Size of simplex batches. Defaults to 32.
         use_triton (bool, optional):
-            Whether to use Triton kernels if available.
+            Whether to use Triton kernels if available. Defaults to True.
         fps_h (Union[None, int], optional):
             h parameter (depth of kdtree) that is used for farthest point sampling to
             select the landmarks. If None, then h is selected based on the size of the

@@ -11,6 +11,8 @@ dynamic = ["version"]
 description = "A package that computes the sublevel Flood bifiltration, a scalable approach for using 2-parameter persistent homology with large-scale, low-dimensional point sets."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT AND GPL-3.0-or-later"
+license-files = ["LICENSE", "LICENSES/*"]
 dependencies = [
     "fpsample",
     "multipers >= 2.6.0",
