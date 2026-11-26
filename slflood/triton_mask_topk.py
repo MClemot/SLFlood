@@ -34,9 +34,9 @@ import triton.language as tl
         triton.Config({"BLOCK_N": 1024}, num_warps=8),
         triton.Config({"BLOCK_N": 2048}, num_warps=8),
     ],
-    key=["N"],
+    key=[],
 )
-@triton.jit(do_not_specialize=["K"])
+@triton.jit(do_not_specialize=["K", "N", "stride_mb", "stride_ob"])
 def _compact_kernel(
     mask_ptr, counts_ptr, out_ptr,
     stride_mb, stride_mn,
@@ -95,14 +95,14 @@ def compact_mask_indices(mask: torch.Tensor, mask_counts: torch.Tensor, k: int) 
     assert mask.is_cuda
     rows, N = mask.shape
 
-    mask_i32 = mask.to(torch.int32).contiguous()
+    mask_u8 = mask.contiguous().view(torch.uint8)
     counts_i32 = mask_counts.to(torch.int32).contiguous()
     out = torch.empty((rows, k), device=mask.device, dtype=torch.int32)
 
     grid = (rows,)
     _compact_kernel[grid](
-        mask_i32, counts_i32, out,
-        mask_i32.stride(0), mask_i32.stride(1),
+        mask_u8, counts_i32, out,
+        mask_u8.stride(0), mask_u8.stride(1),
         counts_i32.stride(0),
         out.stride(0), out.stride(1),
         N, k,
